@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "name": "ofdm-wireless-communication-system",
+  "cleanUrls": true,
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
+}
