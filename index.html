@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OFDM Wireless Communication System with Channel Estimation & Equalization</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Chart.js for BER Plots -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="container">
+    
+    <!-- Header -->
+    <header>
+      <div class="header-title">
+        <h1>
+          <i data-lucide="radio"></i>
+          OFDM Wireless Communication System
+        </h1>
+        <p>Sig2Sig End-to-End Transceiver with Channel Estimation (LS/MMSE) & Equalization (ZF/MMSE)</p>
+      </div>
+      <div class="badge-live">
+        <span></span> LIVE DSP SIMULATOR
+      </div>
+    </header>
+
+    <!-- Control Panel -->
+    <section class="control-grid">
+      <div class="control-group">
+        <label for="modulationSelect">Modulation Scheme</label>
+        <select id="modulationSelect">
+          <option value="BPSK">BPSK (1 bit/symbol)</option>
+          <option value="QPSK" selected>QPSK (2 bits/symbol)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="channelSelect">Channel Type</label>
+        <select id="channelSelect">
+          <option value="AWGN">AWGN (Additive White Noise)</option>
+          <option value="RAYLEIGH" selected>Multipath Rayleigh Fading</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="snrRange">
+          SNR ($E_b/N_0$)
+          <span class="val" id="snrVal">18 dB</span>
+        </label>
+        <input type="range" id="snrRange" min="0" max="30" step="1" value="18">
+      </div>
+
+      <div class="control-group">
+        <label for="estimationSelect">Channel Estimator</label>
+        <select id="estimationSelect">
+          <option value="LS" selected>LS (Least Squares + Interp)</option>
+          <option value="MMSE">MMSE (Minimum Mean Square Error)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="equalizationSelect">Equalizer Mode</label>
+        <select id="equalizationSelect">
+          <option value="ZF" selected>Zero-Forcing (ZF)</option>
+          <option value="MMSE">MMSE Equalizer</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="fftSelect">FFT Size ($N_{fft}$)</label>
+        <select id="fftSelect">
+          <option value="64" selected>64 Subcarriers</option>
+          <option value="128">128 Subcarriers</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Sig2Sig Pipeline Flow Diagram -->
+    <section class="pipeline-card">
+      <div class="pipeline-title">
+        <i data-lucide="git-commit"></i> Sig2Sig Pipeline Flow Architecture
+      </div>
+      <div class="pipeline-steps">
+        <div class="pipeline-step active" data-step="tx_bits">
+          <div class="step-num">STAGE 01</div>
+          <div class="step-name">Bit Source</div>
+        </div>
+        <div class="pipeline-arrow">➔</div>
+
+        <div class="pipeline-step" data-step="mod">
+          <div class="step-num">STAGE 02</div>
+          <div class="step-name">BPSK/QPSK Map</div>
+        </div>
+        <div class="pipeline-arrow">➔</div>
+
+        <div class="pipeline-step" data-step="ifft_cp">
+          <div class="step-num">STAGE 03</div>
+          <div class="step-name">Pilots + IFFT + CP</div>
+        </div>
+        <div class="pipeline-arrow">➔</div>
+
+        <div class="pipeline-step" data-step="channel">
+          <div class="step-num">STAGE 04</div>
+          <div class="step-name">Fading + AWGN</div>
+        </div>
+        <div class="pipeline-arrow">➔</div>
+
+        <div class="pipeline-step" data-step="fft_est">
+          <div class="step-num">STAGE 05</div>
+          <div class="step-name">FFT & LS/MMSE Est</div>
+        </div>
+        <div class="pipeline-arrow">➔</div>
+
+        <div class="pipeline-step" data-step="equalizer">
+          <div class="step-num">STAGE 06</div>
+          <div class="step-name">ZF/MMSE Equalize</div>
+        </div>
+        <div class="pipeline-arrow">➔</div>
+
+        <div class="pipeline-step" data-step="demod">
+          <div class="step-num">STAGE 07</div>
+          <div class="step-name">Rx Demod & BER</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats Summary Cards -->
+    <section class="stats-grid">
+      <div class="stat-box">
+        <div class="label">Bit Error Rate (BER)</div>
+        <div class="val green" id="statBer">0.0000</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">Bit Error Count</div>
+        <div class="val blue" id="statErrors">0 / 2400</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">Channel SNR</div>
+        <div class="val amber" id="statSnr">18 dB</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">Data Rate / Efficiency</div>
+        <div class="val purple" id="statRate">1.5 bits/Hz</div>
+      </div>
+    </section>
+
+    <!-- Main Visualizations Row 1: Constellations & Time Waveforms -->
+    <section class="grid-2col">
+      <!-- Constellations Canvas Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="grid"></i> Sig2Sig Constellation Evolution
+          </div>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Blue: Tx | Red: Faded Rx | Green: Equalized</span>
+        </div>
+        <div class="canvas-container" style="height: 320px;">
+          <canvas id="constellationCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- Time Waveform & CP Canvas Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="activity"></i> OFDM Frame Waveform & Cyclic Prefix (CP)
+          </div>
+          <span style="font-size:0.75rem; color:var(--accent-cyan);">Cyan: CP Guard | White: Payload</span>
+        </div>
+        <div class="canvas-container" style="height: 320px;">
+          <canvas id="waveformCanvas"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Visualizations Row 2: Channel Response & BER Curve -->
+    <section class="grid-2col">
+      <!-- Channel Frequency Response Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="trending-up"></i> Channel Frequency Response $|H(f)|$ & LS Estimate
+          </div>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Blue: True | Red Dots: Pilot LS | Gold: Interp</span>
+        </div>
+        <div class="canvas-container" style="height: 320px;">
+          <canvas id="channelCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- BER vs SNR Performance Chart -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i data-lucide="bar-chart-2"></i> BER vs SNR Performance Benchmarking
+          </div>
+          <button class="btn" id="btnRunBerSweep" style="padding:0.3rem 0.75rem; font-size:0.75rem;">
+            <i data-lucide="play" style="width:14px; height:14px;"></i> Run Sweep
+          </button>
+        </div>
+        <div class="canvas-container" style="height: 320px; padding:0.5rem;">
+          <canvas id="berChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Sig2Sig Image Transmission Demo -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <i data-lucide="image"></i> Interactive Sig2Sig Image Transmission Demo
+        </div>
+        <p style="font-size:0.8rem; color:var(--text-muted);">
+          Simulate transmitting an image through the OFDM Rayleigh fading channel to visualize corrupting noise and equalized restoration!
+        </p>
+      </div>
+
+      <div class="image-demo-container">
+        <div class="image-box">
+          <p>1. Transmitted Image</p>
+          <canvas id="imgTxCanvas" width="128" height="128"></canvas>
+        </div>
+
+        <div class="image-box">
+          <p>2. Received Corrupted Image (Faded)</p>
+          <canvas id="imgRxCanvas" width="128" height="128"></canvas>
+        </div>
+
+        <div class="image-box">
+          <p>3. Equalized Restored Image</p>
+          <canvas id="imgEqCanvas" width="128" height="128"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <p>OFDM Wireless Communication System &copy; 2026 — Designed with JS Engine & Matplotlib Analytics</p>
+    </footer>
+
+  </div>
+
+  <!-- Load DSP Engine & App Logic -->
+  <script src="ofdmEngine.js"></script>
+  <script src="app.js"></script>
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>
